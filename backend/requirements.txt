@@ -1,5 +1,5 @@
 # Vision Agents SDK with all plugins
-vision-agents[getstream,gemini,ultralytics,elevenlabs,deepgram]
+vision-agents[getstream,gemini,elevenlabs,deepgram]
 
 # Web server
 uvicorn[standard]>=0.38.0
@@ -15,3 +15,5 @@ stream-chat>=4.10.0
 
 # FastAPI
 fastapi>=0.115.0
+
+opencv-python-headless>=4.8.0
