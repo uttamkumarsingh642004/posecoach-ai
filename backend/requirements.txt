@@ -1,19 +1,6 @@
-# Vision Agents SDK with all plugins
-vision-agents[getstream,gemini,elevenlabs,deepgram]
-
-# Web server
+vision-agents[getstream,gemini,elevenlabs,deepgram,ultralytics]
 uvicorn[standard]>=0.38.0
-
-# Environment variables
 python-dotenv>=1.1.1
-
-# Math for keypoint calculations
-numpy>=1.26.4
-
-# Stream server-side SDK for token generation
-stream-chat>=4.10.0
-
-# FastAPI
 fastapi>=0.115.0
-
+pyjwt>=2.8.0
 opencv-python-headless>=4.8.0

@@ -1,140 +1,112 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import {
+  StreamVideo,
+  StreamCall,
+  useStreamVideoClient,
+  ParticipantView,
+  useCallStateHooks,
+  CallingState,
+} from '@stream-io/video-react-sdk'
+import '@stream-io/video-react-sdk/dist/css/styles.css'
 import { useStore } from '../store'
-import { PoseOverlay } from './PoseOverlay'
-import { useStreamClient } from '../hooks/useStreamClient'
 
 interface Props {
-  userId: string
-  userName: string
+  client: any
+  callId: string
 }
 
-export function VideoCall({ userId, userName }: Props) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const wsRef = useRef<WebSocket | null>(null)
-  const [sessionStarted, setSessionStarted] = useState(false)
-  const [cameraError, setCameraError] = useState<string | null>(null)
-  const [videoReady, setVideoReady] = useState(false)
-  const { updatePoseData, setMetrics } = useStore()
-  const { isLoading, error } = useStreamClient(userId, userName)
+function CallUI() {
+  const { useParticipants, useCallCallingState } = useCallStateHooks()
+  const participants = useParticipants()
+  const callingState = useCallCallingState()
+  const { poseScore, repCount } = useStore()
 
-  const connectWebSocket = () => {
-    try {
-      const wsUrl = import.meta.env.VITE_API_URL.replace('http', 'ws') + '/ws/pose'
-      const ws = new WebSocket(wsUrl)
-      wsRef.current = ws
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          updatePoseData(data.score ?? 0, data.reps ?? 0, data.errors ?? [], data.keypoints ?? [])
-          setMetrics(null, data.frameTime ?? null)
-        } catch (e) {}
-      }
-      ws.onclose = () => setTimeout(connectWebSocket, 2000)
-    } catch (e) {}
-  }
-
-  const startCamera = async () => {
-    setCameraError(null)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      })
-      streamRef.current = stream
-      setSessionStarted(true)
-      connectWebSocket()
-
-      // Wait for the video element to be in the DOM
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play().then(() => {
-            setVideoReady(true)
-          }).catch(console.error)
-        }
-      }, 100)
-
-    } catch (err) {
-      setCameraError('Camera access denied — please allow camera and try again.')
-    }
-  }
-
-  // Also try attaching stream when video element mounts
-  useEffect(() => {
-    if (sessionStarted && videoRef.current && streamRef.current && !videoReady) {
-      videoRef.current.srcObject = streamRef.current
-      videoRef.current.play().then(() => setVideoReady(true)).catch(console.error)
-    }
-  }, [sessionStarted, videoReady])
-
-  useEffect(() => {
-    return () => {
-      wsRef.current?.close()
-      streamRef.current?.getTracks().forEach(t => t.stop())
-    }
-  }, [])
-
-  if (!sessionStarted) {
+  if (callingState !== CallingState.JOINED) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-96 gap-6 p-8 bg-slate-900 rounded-2xl">
-        <div className="text-6xl">🏋️</div>
-        <h2 className="text-2xl font-bold text-white text-center">Ready to start?</h2>
-        <p className="text-slate-400 text-center max-w-xs">
-          Coach Alex will watch your form in real-time and give voice feedback
-        </p>
-        {cameraError && (
-          <div className="bg-red-500/20 border border-red-500 rounded-lg p-3 text-red-300 text-sm text-center">
-            {cameraError}
-          </div>
-        )}
-        {error && (
-          <div className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-3 text-yellow-300 text-sm text-center">
-            Backend: {error}
-          </div>
-        )}
-        <button
-          onClick={startCamera}
-          disabled={isLoading}
-          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-4 px-10 rounded-2xl text-lg transition-all active:scale-95"
-        >
-          {isLoading ? 'Connecting...' : 'Start Session 🚀'}
-        </button>
+      <div className="flex items-center justify-center h-full text-white">
+        <p>Connecting to Coach Alex...</p>
+      </div>
+    )
+  }
+
+  // Find local participant (you)
+  const localParticipant = participants.find(p => p.isLocalParticipant)
+
+  return (
+    <div className="relative w-full h-full bg-black rounded-2xl overflow-hidden" style={{ minHeight: '400px' }}>
+      {localParticipant && (
+        <ParticipantView
+          participant={localParticipant}
+          className="w-full h-full"
+        />
+      )}
+
+      {/* Score overlay */}
+      <div className="absolute top-3 right-3 bg-black/70 rounded-xl px-4 py-2 text-center">
+        <div className={`text-3xl font-bold ${poseScore >= 85 ? 'text-green-400' : poseScore >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+          {poseScore}
+        </div>
+        <div className="text-white text-xs">FORM</div>
+      </div>
+
+      <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/60 rounded-full px-3 py-1">
+        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+        <span className="text-white text-xs font-medium">LIVE · {repCount} reps</span>
+      </div>
+    </div>
+  )
+}
+
+export function VideoCall({ client, callId }: Props) {
+  const [call, setCall] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!client || !callId) return
+
+    const c = client.call('default', callId)
+    c.join({ create: true })
+      .then(() => {
+        setCall(c)
+        // Enable camera and mic
+        c.camera.enable()
+        c.microphone.enable()
+      })
+      .catch((err: any) => {
+        setError(err.message)
+        console.error('Call join error:', err)
+      })
+
+    return () => {
+      c.leave().catch(console.error)
+    }
+  }, [client, callId])
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full bg-slate-900 rounded-2xl p-8">
+        <div className="text-red-400 text-center">
+          <p className="text-lg font-bold mb-2">Connection Error</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!call) {
+    return (
+      <div className="flex items-center justify-center h-full bg-slate-900 rounded-2xl" style={{ minHeight: '400px' }}>
+        <div className="text-center text-white">
+          <div className="text-4xl mb-4 animate-pulse">🏋️</div>
+          <p>Joining session...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="relative w-full bg-black rounded-2xl overflow-hidden" style={{ minHeight: '400px' }}>
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          display: 'block',
-          transform: 'scaleX(-1)',
-          minHeight: '400px',
-        }}
-      />
-      {videoReady && (
-        <PoseOverlay
-          videoWidth={videoRef.current?.videoWidth || 640}
-          videoHeight={videoRef.current?.videoHeight || 480}
-        />
-      )}
-      <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/60 rounded-full px-3 py-1">
-        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-        <span className="text-white text-xs font-medium">LIVE</span>
-      </div>
-      {!videoReady && (
-        <div className="absolute inset-0 flex items-center justify-center text-white">
-          <p>Starting camera...</p>
-        </div>
-      )}
-    </div>
+    <StreamCall call={call}>
+      <CallUI />
+    </StreamCall>
   )
 }
