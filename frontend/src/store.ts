@@ -1,41 +1,35 @@
 import { create } from 'zustand'
 
 interface StoreState {
-  selectedExercise: 'squat' | 'pushup' | 'lunge'
+  // Used by PoseOverlay.tsx — pixel coords [x, y][]
+  keypoints: [number, number][] | null
   poseScore: number
-  repCount: number
-  formErrors: string[]
-  keypoints: number[][] | null
-  isConnected: boolean
-  joinTime: number | null
-  frameTime: number | null
 
-  setExercise: (exercise: 'squat' | 'pushup' | 'lunge') => void
-  updatePoseData: (score: number, reps: number, errors: string[], keypoints: number[][]) => void
-  setConnected: (val: boolean) => void
-  setMetrics: (joinTime: number | null, frameTime: number | null) => void
-  resetSession: () => void
+  // HUD overlays
+  reps: number
+  exercise: string
+  isConnected: boolean
+
+  // Actions
+  setKeypoints: (kp: [number, number][]) => void
+  setPoseScore: (score: number) => void
+  setReps: (reps: number) => void
+  setExercise: (exercise: string) => void
+  setConnected: (v: boolean) => void
+  setMetrics: (latency: number, err: string | null) => void
 }
 
 export const useStore = create<StoreState>((set) => ({
-  selectedExercise: 'squat',
-  poseScore: 0,
-  repCount: 0,
-  formErrors: [],
-  keypoints: null,
+  keypoints:   null,
+  poseScore:   0,
+  reps:        0,
+  exercise:    '',
   isConnected: false,
-  joinTime: null,
-  frameTime: null,
 
-  setExercise: (exercise) => set({ selectedExercise: exercise }),
-  updatePoseData: (score, reps, errors, keypoints) =>
-    set({ poseScore: score, repCount: reps, formErrors: errors, keypoints }),
-  setConnected: (val) => set({ isConnected: val }),
-  setMetrics: (joinTime, frameTime) =>
-    set((s) => ({
-      joinTime: joinTime ?? s.joinTime,
-      frameTime: frameTime ?? s.frameTime,
-    })),
-  resetSession: () =>
-    set({ poseScore: 0, repCount: 0, formErrors: [], keypoints: null }),
+  setKeypoints:  (keypoints)    => set({ keypoints }),
+  setPoseScore:  (poseScore)    => set({ poseScore }),
+  setReps:       (reps)         => set({ reps }),
+  setExercise:   (exercise)     => set({ exercise }),
+  setConnected:  (isConnected)  => set({ isConnected }),
+  setMetrics:    (_l, _e)       => {},
 }))
