@@ -2,7 +2,7 @@ import { useStore } from '../store'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export function ScoreDisplay() {
-  const { poseScore, repCount, formErrors, joinTime, frameTime } = useStore()
+  const { poseScore, reps, formErrors, joinTime, frameTime } = useStore()
 
   const scoreColor =
     poseScore >= 85 ? 'text-green-400' :
@@ -33,12 +33,12 @@ export function ScoreDisplay() {
         <p className="text-slate-400 text-xs uppercase tracking-wider">Reps</p>
         <AnimatePresence mode="wait">
           <motion.div
-            key={repCount}
+            key={reps}
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="text-5xl font-bold text-white"
           >
-            {repCount}
+            {reps}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -47,7 +47,7 @@ export function ScoreDisplay() {
       {formErrors.length > 0 && (
         <div className="flex flex-col gap-2">
           <p className="text-slate-400 text-xs uppercase tracking-wider">Corrections</p>
-          {formErrors.slice(0, 3).map((err, i) => (
+          {formErrors.slice(0, 3).map((err: string, i: number) => (
             <div key={i} className="bg-red-500/20 border border-red-500/40 rounded-lg px-3 py-2 text-red-300 text-sm">
               {err}
             </div>

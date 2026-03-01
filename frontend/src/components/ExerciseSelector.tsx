@@ -18,8 +18,8 @@ export function ExerciseSelector() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ exercise: id }),
       })
-    } catch (e) {
-      console.log('Could not update exercise on backend yet')
+    } catch (_) {
+      // backend not required for selection to work
     }
   }
 
